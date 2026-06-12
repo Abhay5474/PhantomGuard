@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping: 1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  control-plane:
+    build:
+      context: .
+      dockerfile: phantomguard-control-plane/Dockerfile
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/phantomguard
+      REDIS_HOST: redis
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-in-production}
+      PUBLIC_DOH_BASE_URL: ${PUBLIC_DOH_BASE_URL:-https://dns.yourdomain.com}
+      DNS_DOMAIN_SUFFIX: ${DNS_DOMAIN_SUFFIX:-dns.yourdomain.com}
+      DASHBOARD_ORIGIN: ${DASHBOARD_ORIGIN:-http://localhost:3000}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  data-plane:
+    build:
+      context: .
+      dockerfile: phantomguard-data-plane/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      UPSTREAM_DNS_HOST: ${UPSTREAM_DNS_HOST:-1.1.1.1}
+      DNS_DOMAIN_SUFFIX: ${DNS_DOMAIN_SUFFIX:-dns.yourdomain.com}
+      BLOCK_MODE: ${BLOCK_MODE:-NXDOMAIN}
+    ports:
+      - "8443:8443"   # DoH (terminate public 443 TLS at your LB/ingress)
+      - "853:853"     # DoT
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ./dashboard
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+      NEXT_PUBLIC_PARENT_ID: ${NEXT_PUBLIC_PARENT_ID:-demo-parent}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - control-plane
+
+volumes:
+  mongo-data:

@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: phantomguard-data-plane
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  # Production deployments terminate public TLS (port 443) at the LB/ingress
+  # or via server.ssl.*; DoH listens here on the reactive Netty server.
+  port: ${DOH_PORT:8443}
+
+phantomguard:
+  dataplane:
+    upstream-host: ${UPSTREAM_DNS_HOST:1.1.1.1}
+    upstream-port: ${UPSTREAM_DNS_PORT:53}
+    upstream-timeout-ms: 2500
+    dot-enabled: ${DOT_ENABLED:true}
+    dot-port: ${DOT_PORT:853}
+    tls-cert-chain-path: ${DOT_TLS_CERT:}
+    tls-private-key-path: ${DOT_TLS_KEY:}
+    dns-domain-suffix: ${DNS_DOMAIN_SUFFIX:dns.yourdomain.com}
+    block-mode: ${BLOCK_MODE:NXDOMAIN}
+    safe-landing-ip: ${SAFE_LANDING_IP:0.0.0.0}
+    redirect-ttl-seconds: 60
+    policy-cache-ttl-seconds: 300
+    policy-lookup-timeout-ms: 150
+    category-index-refresh-seconds: 300
+    telemetry-buffer-max-length: 500000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.phantomguard: INFO

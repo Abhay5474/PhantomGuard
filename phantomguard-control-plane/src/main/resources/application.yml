@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: phantomguard-control-plane
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/phantomguard}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: ${CONTROL_PLANE_PORT:8080}
+
+phantomguard:
+  controlplane:
+    public-doh-base-url: ${PUBLIC_DOH_BASE_URL:https://dns.yourdomain.com}
+    dot-domain-suffix: ${DNS_DOMAIN_SUFFIX:dns.yourdomain.com}
+    admin-api-key: ${ADMIN_API_KEY:change-me-in-production}
+    allowed-origins:
+      - ${DASHBOARD_ORIGIN:http://localhost:3000}
+    telemetry-batch-size: 500
+    telemetry-drain-interval-ms: 500
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.phantomguard: INFO
