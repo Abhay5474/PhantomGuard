@@ -40,6 +40,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(apiKeyAuthFilter, BasicAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        // CORS preflight: browsers omit credentials/custom headers on OPTIONS,
+                        // so let preflight through before the real (authenticated) request follows.
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/**").authenticated()
                         .requestMatchers("/api/**", "/ws/**", "/actuator/health/**", "/actuator/info").permitAll()
