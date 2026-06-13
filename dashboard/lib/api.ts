@@ -30,6 +30,18 @@ export const api = {
 
   getProfile: (clientId: string) => request<Profile>(`/api/profiles/${clientId}`),
 
+  deleteProfile: (clientId: string) =>
+    request<{ deleted: string }>(`/api/profiles/${clientId}`, {
+      method: "DELETE",
+      headers: { "X-PG-Admin-Key": ADMIN_KEY },
+    }),
+
+  clearData: (parentId: string) =>
+    request<{ deleted: number }>(
+      `/api/telemetry?parentId=${encodeURIComponent(parentId)}`,
+      { method: "DELETE", headers: { "X-PG-Admin-Key": ADMIN_KEY } },
+    ),
+
   androidOnboarding: (clientId: string) =>
     request<{ privateDnsHostname: string; steps: string[] }>(`/api/profiles/${clientId}/android`),
 

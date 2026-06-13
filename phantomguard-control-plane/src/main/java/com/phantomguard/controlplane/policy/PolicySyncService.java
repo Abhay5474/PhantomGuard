@@ -48,6 +48,30 @@ public class PolicySyncService {
         this.redis = redis;
     }
 
+    /**
+     * Removes a child profile entirely: deletes the MongoDB source-of-truth
+     * document, purges the client's three Redis policy sets, and broadcasts an
+     * invalidation so every data-plane instance drops its near-cache.
+     */
+    public void deleteProfile(String clientId) {
+        ChildProfileDocument profile = profileService.requireByClientId(clientId);
+        repository.delete(profile);
+        purgeRedis(clientId);
+        publishInvalidation(clientId);
+        log.info("Deleted profile clientId={}", clientId);
+    }
+
+    private void purgeRedis(String clientId) {
+        try {
+            redis.delete(java.util.List.of(
+                    RedisKeys.blockedDomains(clientId),
+                    RedisKeys.blockedCategories(clientId),
+                    RedisKeys.allowedDomains(clientId)));
+        } catch (RuntimeException e) {
+            log.error("Redis policy purge failed for clientId={}: {}", clientId, e.toString());
+        }
+    }
+
     public ChildProfileDocument toggle(PolicyToggleRequest request) {
         ChildProfileDocument profile = profileService.requireByClientId(request.clientId());
         applyMutation(profile, request);
