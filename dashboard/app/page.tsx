@@ -1,6 +1,6 @@
 "use client";
 
-import { Ghost } from "lucide-react";
+import { Eraser, Ghost, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LiveFeed from "@/components/LiveFeed";
 import OnboardingPanel from "@/components/OnboardingPanel";
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [initialEvents, setInitialEvents] = useState<LiveEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"clear" | "delete" | null>(null);
 
   const { events, connected } = useLiveFeed(PARENT_ID, initialEvents);
 
@@ -47,6 +48,42 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [refreshSummary]);
 
+  async function clearAllData() {
+    if (!window.confirm("Clear all telemetry data? This cannot be undone.")) return;
+    setBusyAction("clear");
+    try {
+      await api.clearData(PARENT_ID);
+      setInitialEvents([]);
+      refreshSummary();
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to clear data");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteSelectedChild() {
+    if (!selectedProfile) return;
+    const removed = selectedProfile.clientId;
+    if (
+      !window.confirm(
+        `Delete ${selectedProfile.childName}? This removes the profile and its policies.`,
+      )
+    )
+      return;
+    setBusyAction("delete");
+    try {
+      await api.deleteProfile(removed);
+      setProfiles((prev) => prev.filter((p) => p.clientId !== removed));
+      setSelectedClientId(null);
+      refreshSummary();
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to delete child");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   function handlePolicyChanged(updated: {
     blockedCategories: string[];
     blockedDomains: string[];
@@ -71,19 +108,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {profiles.length > 0 && (
-          <select
-            value={selectedProfile?.clientId ?? ""}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            className="rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-slate-200 focus:border-sky-500 focus:outline-none"
+        <div className="flex flex-wrap items-center gap-2">
+          {profiles.length > 0 && (
+            <select
+              value={selectedProfile?.clientId ?? ""}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-slate-200 focus:border-sky-500 focus:outline-none"
+            >
+              {profiles.map((p) => (
+                <option key={p.clientId} value={p.clientId}>
+                  {p.childName}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={clearAllData}
+            disabled={busyAction !== null}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-edge bg-panel px-3 py-2 text-sm font-semibold text-slate-300 transition hover:border-amber-500/40 hover:text-amber-300 disabled:opacity-40"
           >
-            {profiles.map((p) => (
-              <option key={p.clientId} value={p.clientId}>
-                {p.childName}
-              </option>
-            ))}
-          </select>
-        )}
+            <Eraser className="h-4 w-4" />
+            {busyAction === "clear" ? "Clearing…" : "Clear all data"}
+          </button>
+
+          {selectedProfile && (
+            <button
+              onClick={deleteSelectedChild}
+              disabled={busyAction !== null}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
+            >
+              <Trash2 className="h-4 w-4" />
+              {busyAction === "delete" ? "Deleting…" : "Delete child"}
+            </button>
+          )}
+        </div>
       </header>
 
       {loadError && (

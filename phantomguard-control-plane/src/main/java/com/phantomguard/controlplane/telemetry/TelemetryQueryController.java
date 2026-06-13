@@ -15,6 +15,7 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -70,6 +71,18 @@ public class TelemetryQueryController {
                     return m;
                 })
                 .toList();
+    }
+
+    /** Clears the entire DNS query-log history for a parent's children. */
+    @DeleteMapping
+    public Map<String, Object> clearAll(@RequestParam @NotBlank String parentId) {
+        List<String> clientIds = clientIdsOf(parentId);
+        if (clientIds.isEmpty()) {
+            return Map.of("deleted", 0L);
+        }
+        Query query = Query.query(Criteria.where("clientId").in(clientIds));
+        var result = mongoTemplate.remove(query, DnsQueryLogDocument.class, MongoConfig.QUERY_LOG_COLLECTION);
+        return Map.of("deleted", result.getDeletedCount());
     }
 
     @GetMapping("/summary")

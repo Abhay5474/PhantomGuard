@@ -1,6 +1,7 @@
 package com.phantomguard.controlplane.profile;
 
 import com.phantomguard.controlplane.config.ControlPlaneProperties;
+import com.phantomguard.controlplane.policy.PolicySyncService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,13 +34,16 @@ public class ProfileController {
     private final ProfileService profileService;
     private final MobileConfigGenerator mobileConfigGenerator;
     private final ControlPlaneProperties properties;
+    private final PolicySyncService policySyncService;
 
     public ProfileController(ProfileService profileService,
                              MobileConfigGenerator mobileConfigGenerator,
-                             ControlPlaneProperties properties) {
+                             ControlPlaneProperties properties,
+                             PolicySyncService policySyncService) {
         this.profileService = profileService;
         this.mobileConfigGenerator = mobileConfigGenerator;
         this.properties = properties;
+        this.policySyncService = policySyncService;
     }
 
     /** Provisions a child profile and returns its unique resolver endpoints. */
@@ -57,6 +62,13 @@ public class ProfileController {
     @GetMapping("/{clientId}")
     public ProfileResponse get(@PathVariable @Pattern(regexp = UUID_REGEX) String clientId) {
         return profileService.getByClientId(clientId);
+    }
+
+    /** Deletes a registered child profile along with its policy projection. */
+    @DeleteMapping("/{clientId}")
+    public Map<String, Object> delete(@PathVariable @Pattern(regexp = UUID_REGEX) String clientId) {
+        policySyncService.deleteProfile(clientId);
+        return Map.of("deleted", clientId);
     }
 
     /**
